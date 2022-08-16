@@ -15,7 +15,7 @@ from model_layer import Vgg16_all_layer, Vgg19_all_layer,Res152_all_layer, Dense
 import random
 from generator import GeneratorResnet
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
 
 parser = argparse.ArgumentParser(description='Transfer towards Black-box Domain')
 parser.add_argument('--train_dir', default='', help='the path for imagenet training data') 
@@ -118,6 +118,9 @@ print('Training data size:', train_size)
 # Loss
 criterion = nn.CrossEntropyLoss()
 
+# Blur
+gauss = transforms.GaussianBlur(5, sigma=(0.5, 1.0))
+
 # Training
 for epoch in range(args.epochs):
     running_loss = 0
@@ -130,6 +133,9 @@ for epoch in range(args.epochs):
         # Projection
         adv = torch.min(torch.max(adv, img - eps), img + eps)
         adv = torch.clamp(adv, 0.0, 1.0)
+        
+        # blur img
+        img = gauss(img)
 
         # Saving adversarial examples
         flag = False
@@ -165,7 +171,7 @@ for epoch in range(args.epochs):
         else:
             attention = torch.ones(adv_out_slice.shape).cuda()
 
-        loss = torch.cosine_similarity((adv_out_slice*attention).reshape(adv_out_slice.shape[0], -1), 
+        loss = -torch.cosine_similarity((adv_out_slice*attention).reshape(adv_out_slice.shape[0], -1), 
                             (img_out_slice*attention).reshape(img_out_slice.shape[0], -1)).mean()
         loss.backward()
         optimG.step()
