@@ -111,7 +111,7 @@ def normalize(t, mean, std):
 
 train_dir = args.train_dir
 train_set = datasets.ImageFolder(train_dir, data_transform)
-train_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
+train_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=16, pin_memory=True)
 train_size = len(train_set)
 print('Training data size:', train_size)
 
