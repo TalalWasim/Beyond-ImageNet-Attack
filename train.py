@@ -171,7 +171,7 @@ for epoch in range(args.epochs):
                 os.makedirs(save_path)
             plt.savefig(os.path.join(save_path, '{}.png'.format(i)), bbox_inches='tight')
 
-        corrupt_model = random_neuron_inj_batched(min_val=MIN_VAL, max_val=MAX_VAL)
+        corrupt_model = random_neuron_inj_batched(pfi_model, min_val=MIN_VAL, max_val=MAX_VAL)
         if args.RN:
             mean = np.random.normal(0.50, 0.08)
             std = np.random.normal(0.75, 0.08)
