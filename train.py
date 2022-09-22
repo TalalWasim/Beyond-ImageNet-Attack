@@ -15,6 +15,8 @@ from model_layer import Vgg16_all_layer, Vgg19_all_layer,Res152_all_layer, Dense
 import random
 from generator import GeneratorResnet
 import os
+from pytorchfi.core import fault_injection
+from pytorchfi.neuron_error_models import random_neuron_inj_batched
 
 
 parser = argparse.ArgumentParser(description='Transfer towards Black-box Domain')
@@ -82,6 +84,18 @@ model.eval()
 scale_size = 256
 img_size = 224
 
+MIN_VAL = -1000
+MAX_VAL = 1000
+
+pfi_model = fault_injection(model,
+                            args.batch_size,
+                            input_shape=[3, img_size, img_size],
+                            layer_types=[nn.Conv2d, nn.Linear],
+                            use_cuda=True,
+                            )
+
+print(pfi_model.print_pytorchfi_layer_summary())
+
 # Generator
 netG = GeneratorResnet().to(device)
 
@@ -119,7 +133,7 @@ print('Training data size:', train_size)
 criterion = nn.CrossEntropyLoss()
 
 # Blur
-gauss = transforms.GaussianBlur(5, sigma=(0.5, 1.0))
+# gauss = transforms.GaussianBlur(5, sigma=(0.5, 1.0))
 
 # Training
 for epoch in range(args.epochs):
@@ -135,7 +149,7 @@ for epoch in range(args.epochs):
         adv = torch.clamp(adv, 0.0, 1.0)
         
         # blur img
-        img = gauss(img)
+        # img = gauss(img)
 
         # Saving adversarial examples
         flag = False
@@ -157,14 +171,17 @@ for epoch in range(args.epochs):
                 os.makedirs(save_path)
             plt.savefig(os.path.join(save_path, '{}.png'.format(i)), bbox_inches='tight')
 
+        corrupt_model = random_neuron_inj_batched(min_val=MIN_VAL, max_val=MAX_VAL)
         if args.RN:
             mean = np.random.normal(0.50, 0.08)
             std = np.random.normal(0.75, 0.08)
             adv_out_slice = model(normalize(adv.clone(), mean, std))[layer_idx]
-            img_out_slice = model(normalize(img.clone(), mean, std))[layer_idx]
+            img_out_slice = corrupt_model(normalize(img.clone(), mean, std))[layer_idx]
+            # img_out_slice = model(normalize(img.clone(), mean, std))[layer_idx]
         else:
             adv_out_slice = model(default_normalize(adv.clone()))[layer_idx]
-            img_out_slice = model(default_normalize(img.clone()))[layer_idx]
+            img_out_slice = corrupt_model(normalize(img.clone(), mean, std))[layer_idx]
+            # img_out_slice = model(default_normalize(img.clone()))[layer_idx]
 
         if args.DA:
             attention = abs(torch.mean(img_out_slice, dim=1, keepdim=True)).detach()
